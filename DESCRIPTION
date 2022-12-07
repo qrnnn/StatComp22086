@@ -1,0 +1,16 @@
+Package: StatComp22086
+Type: Package
+Title: EM for a certain case and SPCA
+Version: 1.0
+Date: 2022-12-07
+Author: Qi Ruonan
+Maintainer: Qi Ruonan <qrn@mail.ustc.edc.cn>
+Description: In addition to homework, this package includes three functions. Two of them make up the SPCA method . This method can make the loadings of the selected principal component as sparse as possible under the condition that the proportion of the  interpretable variance of the selected principal component is large enough. Another function is the EM algorithm written in RCPP for a particular case.
+License: GPL (>= 2)
+Imports: Rcpp, elasticnet, kableExtra, knitr, boot, bootstrap, DAAG, MASS, microbenchmark, purrr
+LinkingTo: Rcpp
+RoxygenNote: 7.2.2
+Encoding: UTF-8
+VignetteBuilder: knitr
+URL: http://github.com/qrnnn/StatComp22086
+BugReports: http://github.com/qrnnn/StatComp22086/issues

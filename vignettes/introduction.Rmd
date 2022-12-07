@@ -1,0 +1,121 @@
+---
+title: "Introduction to StatComp22086"
+author: "sa22204143"
+date: "2022/12/7"
+output: rmarkdown::html_vignette
+vignette: >
+ %\VignetteIndexEntry{Introduction to StatComp22086}
+ %\VignetteEngine{knitr::rmarkdown}
+ %\VignetteEncoding{UTF-8}
+---
+
+## Overview
+
+_StatComp22086_ is a simple R package includes three functions. 'beta_update' Update the parameters (Coordinate descent method). 'SPCA' The function of SPCA method. Output parameters: loadings(loading obtained by SPCA method), pev(the proportion of variance explained by the principal component), cumsum_pev(the cumulative proportion of variance explained by the principal component). 'EMC' EM method of certain case. We only know that Xi's have distribution Exp(a)(i.i.d) and Xi falls in (ui,vi) for i=1,...,n. This function can use to get the unknown parameter a. 
+
+## beta_update
+
+```{r}
+beta_update <- function(x, y, beta, lambda, lambda0){    
+  beta0 <- matrix(1, nrow(beta), 1)
+  while(max(abs(beta - beta0)) > 1e-3){
+    beta0 <- beta
+    for (j in 1:nrow(beta)){   
+      temp <- rep(0,nrow(y))
+      for (i in 1:nrow(y)){
+        temp[i] <- y[i] - sum(beta*x[,i])+beta[j]*x[j,i]
+      }
+      ru <- sum(x[j,]*temp)
+      z <- sum((x^2)[j,]) + 2*lambda0
+      if (ru < (-lambda/2)){  
+        beta[j] <- ((ru + (lambda/2))/z)
+      }else if((ru > (lambda/2))){
+        beta[j] <- ((ru - (lambda/2))/z)
+      }else{
+        beta[j] <- 0
+      }    
+    }
+  }
+  return(beta)
+}
+```
+
+## SPCA
+
+```{r}
+SPCA <- function(cormat, k, eps, lambda, lambda1){
+  x.eigen <- eigen(cormat)
+  d <- x.eigen$values
+  d <- (d + abs(d))/2
+  v <- x.eigen$vectors
+  x <- v %*% diag(sqrt(d)) %*% t(v)
+  n <- nrow(x)
+  p <- ncol(x)
+  V <- svd(x)$v
+  alpha <- V[,1:k]    
+  
+  Beta_now <- matrix(0, nrow=p, ncol=k)
+  Beta_new <- matrix(1.1, nrow=p, ncol=k)
+  iter <- 0
+  while(max(abs((Beta_new)-(Beta_now)))>eps){
+    iter <- iter+1
+    Beta_now <- Beta_new
+    for (j in 1:k){
+      y <- drop(x%*%alpha[,j])
+      Beta_new[,j] <- beta_update(as.matrix(x), as.matrix(y), as.matrix(Beta_new[,j]), lambda1[j], lambda)
+    }
+    tempp <- svd(cormat%*%Beta_new)
+    alpha <- (tempp$u)%*%t(tempp$v)    
+  }
+  normbeta <- sqrt(apply(Beta_new^2, 2, sum))
+  normbeta[normbeta==0] <- 1
+  beta <- t(t(Beta_new)/normbeta)   
+  u <- x%*%beta
+  R <- qr.R(qr(u))
+  
+  pev <- diag(R^2)/sum((svd(x)$d)^2)
+  vn <- dimnames(x)[[2]]
+  obj <- list(loadings = beta, pev = pev,cumsum_pev = cumsum(pev))
+  return(obj)
+}
+
+```
+
+```{r eval=FALSE}
+library(elasticnet)
+data(pitprops)
+SPCA(pitprops,6,1e-6,0,c(0.06,0.16,0.1,0.5,0.5,0.5))
+```
+
+## EMC
+
+
+```{Rcpp}
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+double EMC(double lambda1, double lambda2, NumericVector u, NumericVector v){
+  double eps = pow(10,-5);
+  int n = sizeof(u);
+  while(abs(lambda1-lambda2)>=eps){
+    lambda1 = lambda2;
+    NumericVector x = exp(-lambda1*u);
+    NumericVector y = exp(-lambda1*v);
+    lambda2 = n/sum(((lambda1*u+1)*x-(lambda1*v+1)*y)/(lambda1*(x-y)));
+  }
+  return(lambda2);
+}
+```
+
+```{r eval=FALSE}
+lambda1 <- 2
+lambda2 <- 1
+u <- c(11,8,27,13,16,0,23,10,24,2)
+v <- c(12,9,28,14,17,1,24,11,25,3)
+emc <- EMC(lambda1,lambda2,u,v)
+emc
+```
+
+
+
